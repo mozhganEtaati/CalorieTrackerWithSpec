@@ -1,0 +1,26 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.local)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read|Edit|Write|NotebookEdit|Grep|Glob|Bash|PowerShell",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node",
+            "args": [
+              "D:\\Hackaton\\CalorieTrackerWithSpec\\.claude\\hooks\\block-env.js"
+            ],
+            "timeout": 10,
+            "statusMessage": "Checking for .env access"
+          }
+        ]
+      }
+    ]
+  }
+}
