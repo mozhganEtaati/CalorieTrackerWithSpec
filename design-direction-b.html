@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Calorie Tracker — Direction B</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --honey:     #E9C87C;
+    --honey-dim: #DDB863;
+    --pine:      #1F4E4A;
+    --pine-soft: #35706A;
+    --porcelain: #FBF8F1;
+    --coral:     #D9483B;
+    --sage:      #9CB89A;
+
+    --display: "Bricolage Grotesque", "Trebuchet MS", sans-serif;
+    --body: "Karla", "Segoe UI", system-ui, sans-serif;
+
+    --fill-pct: 21.75%;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--honey);
+    color: var(--pine);
+    font-family: var(--body);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 30rem;
+    margin: 0 auto;
+    padding: 1.5rem 1.25rem 4rem;
+  }
+
+  /* ---------- day navigation ---------- */
+
+  .daybar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .daybar__day {
+    font-family: var(--display);
+    font-size: 1.0625rem;
+    font-weight: 600;
+    font-variation-settings: "wdth" 90;
+    letter-spacing: -0.01em;
+  }
+
+  .daybar__today {
+    font-size: .75rem;
+    color: var(--pine-soft);
+    margin-top: .1rem;
+  }
+
+  .nudge {
+    appearance: none;
+    border: 1.5px solid var(--pine);
+    background: transparent;
+    color: var(--pine);
+    width: 2rem;
+    height: 2rem;
+    border-radius: 999px;
+    font-size: .9rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+  }
+  .nudge:hover:not(:disabled) { background: var(--pine); color: var(--honey); }
+  .nudge:disabled { opacity: .3; cursor: not-allowed; }
+
+  /* ---------- the jug: the signature ---------- */
+
+  .vessel {
+    display: flex;
+    justify-content: center;
+  }
+
+  .jug {
+    position: relative;
+    width: 8.5rem;
+    height: 13rem;
+  }
+
+  /* The rim IS the goal — dashed, so a full measure reads as a day at goal
+     and there is no second line competing with it. */
+  .jug__body {
+    position: absolute;
+    inset: 0;
+    border: 3px solid var(--pine);
+    border-top: 3px dashed var(--pine);
+    border-radius: .35rem .35rem 1.6rem 1.6rem;
+    background: var(--porcelain);
+    overflow: hidden;
+  }
+
+  .jug__fill {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: var(--fill-pct);
+    background: var(--pine);
+    transition: height .7s cubic-bezier(.22,.68,.28,1), background .3s ease;
+  }
+
+  /* the meniscus — a liquid has a surface, not an edge */
+  .jug__fill::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0; top: 0;
+    height: 3px;
+    background: var(--pine-soft);
+  }
+
+  /* graduations, unlabelled except the goal */
+  .jug__ticks { position: absolute; inset: 0; }
+  .tick {
+    position: absolute;
+    right: 0;
+    width: 1.1rem;
+    border-top: 2px solid var(--pine);
+    opacity: .35;
+  }
+  .tick--25 { bottom: 25%; }
+  .tick--50 { bottom: 50%; width: 1.7rem; }
+  .tick--75 { bottom: 75%; }
+
+  /* Absolute, so the label never shifts the jug off the page's centre line. */
+  .goalline__label {
+    position: absolute;
+    left: calc(100% + .75rem);
+    top: -0.6rem;
+    font-family: var(--display);
+    font-size: .6875rem;
+    font-weight: 700;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--pine);
+    white-space: nowrap;
+  }
+
+  /* over-goal: it pours over the rim */
+  .spill {
+    position: absolute;
+    top: 0;
+    right: -0.9rem;
+    width: .55rem;
+    height: 0;
+    background: var(--coral);
+    border-radius: 0 0 .3rem .3rem;
+    transition: height .5s ease .25s;
+  }
+
+  /* ---------- the answer ---------- */
+
+  .readout { text-align: center; margin-top: 1.6rem; }
+
+  .readout__big {
+    font-family: var(--display);
+    font-size: 4rem;
+    font-weight: 700;
+    font-variation-settings: "wdth" 85;
+    letter-spacing: -0.035em;
+    line-height: .95;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .readout__unit {
+    font-size: 1.125rem;
+    font-weight: 500;
+    letter-spacing: 0;
+    margin-left: .3rem;
+  }
+
+  .readout__detail {
+    font-size: .875rem;
+    color: var(--pine-soft);
+    margin-top: .4rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .macros {
+    display: flex;
+    justify-content: center;
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+    font-size: .8125rem;
+    color: var(--pine-soft);
+    font-variant-numeric: tabular-nums;
+  }
+  .macros b {
+    font-family: var(--display);
+    font-weight: 700;
+    color: var(--pine);
+  }
+
+  /* ---------- sections ---------- */
+
+  .section { margin-top: 2.75rem; }
+
+  .section__head {
+    font-family: var(--display);
+    font-size: .75rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--pine-soft);
+    margin: 0 0 .75rem;
+  }
+
+  .card {
+    background: var(--porcelain);
+    border: 2px solid var(--pine);
+    border-radius: 1rem;
+    overflow: hidden;
+  }
+
+  .entry {
+    display: flex;
+    align-items: baseline;
+    gap: .75rem;
+    padding: .85rem 1rem;
+    border-bottom: 1px solid rgba(31,78,74,.16);
+  }
+  .entry:last-child { border-bottom: 0; }
+
+  .entry__name { font-weight: 600; font-size: .9375rem; flex: 1; min-width: 0; }
+  .entry__amount { font-size: .75rem; color: var(--pine-soft); font-variant-numeric: tabular-nums; }
+  .entry__kcal {
+    font-family: var(--display);
+    font-weight: 700;
+    font-size: 1.25rem;
+    font-variant-numeric: tabular-nums;
+    min-width: 3.2rem;
+    text-align: right;
+  }
+
+  .entry__acts { display: flex; gap: .35rem; }
+  .chip {
+    appearance: none;
+    border: 1.5px solid rgba(31,78,74,.3);
+    background: transparent;
+    color: var(--pine);
+    border-radius: 999px;
+    padding: .2rem .6rem;
+    font-family: var(--body);
+    font-size: .6875rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .chip:hover { border-color: var(--pine); background: var(--pine); color: var(--porcelain); }
+  .chip--danger:hover { border-color: var(--coral); background: var(--coral); }
+
+  .addbtn {
+    display: block;
+    width: 100%;
+    margin-top: .75rem;
+    appearance: none;
+    border: 2px dashed rgba(31,78,74,.4);
+    background: transparent;
+    color: var(--pine);
+    border-radius: 1rem;
+    padding: .9rem;
+    font-family: var(--display);
+    font-size: .875rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    cursor: pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .addbtn:hover { border-color: var(--pine); background: rgba(251,248,241,.55); }
+
+  /* ---------- the week: seven small jugs ---------- */
+
+  .week { display: flex; gap: .5rem; }
+
+  .day {
+    flex: 1;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+  }
+
+  .day__jug {
+    position: relative;
+    height: 3.1rem;
+    border: 2px solid var(--pine);
+    border-radius: .25rem .25rem .7rem .7rem;
+    background: var(--porcelain);
+    overflow: hidden;
+    transition: transform .15s ease;
+  }
+  .day:hover .day__jug { transform: translateY(-2px); }
+
+  .day__fill {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: var(--pine);
+  }
+  .day__fill--over { background: var(--coral); }
+
+  .day--on .day__jug { box-shadow: 0 0 0 3px var(--honey), 0 0 0 5px var(--pine); }
+
+  .day__label {
+    display: block;
+    margin-top: .5rem;
+    font-size: .6875rem;
+    color: var(--pine-soft);
+    letter-spacing: .02em;
+  }
+  .day--on .day__label { color: var(--pine); font-weight: 700; }
+
+  /* ---------- state switcher (comp only) ---------- */
+
+  .switcher {
+    position: fixed;
+    right: 1rem;
+    top: 1rem;
+    display: flex;
+    gap: .25rem;
+    background: var(--pine);
+    padding: .3rem;
+    border-radius: 999px;
+    z-index: 10;
+  }
+  .switcher button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--honey);
+    font-family: var(--body);
+    font-size: .75rem;
+    font-weight: 600;
+    padding: .4rem .85rem;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .switcher button[aria-pressed="true"] { background: var(--honey); color: var(--pine); }
+
+  /* ---------- over-goal palette shift ---------- */
+
+  body.is-over .jug__fill { background: var(--coral); }
+  body.is-over .jug__fill::before { background: #E9705F; }
+  body.is-over .spill { height: 4.5rem; }
+  body.is-over .readout__big { color: var(--coral); }
+
+  :focus-visible { outline: 3px solid var(--pine); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition-duration: .01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <div class="daybar">
+    <button class="nudge" aria-label="Previous day">←</button>
+    <div>
+      <div class="daybar__day">Monday, 17 August</div>
+      <div class="daybar__today">today</div>
+    </div>
+    <button class="nudge" aria-label="Next day" disabled>→</button>
+  </div>
+
+  <div class="vessel">
+    <div class="jug">
+      <div class="spill"></div>
+      <div class="jug__body">
+        <div class="jug__ticks">
+          <div class="tick tick--25"></div>
+          <div class="tick tick--50"></div>
+          <div class="tick tick--75"></div>
+        </div>
+        <div class="jug__fill" id="fill"></div>
+      </div>
+      <span class="goalline__label">goal</span>
+    </div>
+  </div>
+
+  <div class="readout">
+    <div class="readout__big"><span id="big">1,565</span><span class="readout__unit" id="unit">left</span></div>
+    <div class="readout__detail"><span id="detail">435 of 2,000 eaten</span></div>
+  </div>
+
+  <div class="macros">
+    <span><b id="p">63</b> protein</span>
+    <span><b id="c">27</b> carbs</span>
+    <span><b id="f">8</b> fat</span>
+  </div>
+
+  <section class="section">
+    <h2 class="section__head">What you ate</h2>
+    <div class="card" id="log">
+      <div class="entry">
+        <span class="entry__name">Chicken breast</span>
+        <span class="entry__amount">2 × 100g</span>
+        <span class="entry__kcal">330</span>
+        <span class="entry__acts">
+          <button class="chip">Edit</button>
+          <button class="chip chip--danger">Delete</button>
+        </span>
+      </div>
+      <div class="entry">
+        <span class="entry__name">Banana</span>
+        <span class="entry__amount">1 × piece</span>
+        <span class="entry__kcal">105</span>
+        <span class="entry__acts">
+          <button class="chip">Edit</button>
+          <button class="chip chip--danger">Delete</button>
+        </span>
+      </div>
+    </div>
+    <button class="addbtn">+ Add something</button>
+  </section>
+
+  <section class="section">
+    <h2 class="section__head">This week</h2>
+    <div class="week" id="week"></div>
+  </section>
+
+</div>
+
+<div class="switcher" role="group" aria-label="Preview a state">
+  <button aria-pressed="true"  data-state="under">Under</button>
+  <button aria-pressed="false" data-state="at">At goal</button>
+  <button aria-pressed="false" data-state="over">Over</button>
+  <button aria-pressed="false" data-state="empty">Empty day</button>
+</div>
+
+<script>
+  const GOAL = 2000;
+
+  // Sample week for the comp.
+  const WEEK = [
+    { label: "Tue", kcal: 1840 },
+    { label: "Wed", kcal: 2180 },
+    { label: "Thu", kcal: 1650 },
+    { label: "Fri", kcal: 163  },
+    { label: "Sat", kcal: 0    },
+    { label: "Sun", kcal: 1950 },
+    { label: "Mon", kcal: 435, on: true },
+  ];
+
+  const weekEl = document.getElementById("week");
+  weekEl.innerHTML = WEEK.map(d => {
+    const pct = Math.min(100, (d.kcal / GOAL) * 100);
+    const over = d.kcal > GOAL;
+    return `
+      <button class="day ${d.on ? "day--on" : ""}">
+        <span class="day__jug">
+          <span class="day__fill ${over ? "day__fill--over" : ""}" style="height:${pct}%"></span>
+        </span>
+        <span class="day__label">${d.label}</span>
+      </button>`;
+  }).join("");
+
+  const STATES = {
+    under: { kcal: 435,  p: 63, c: 27,  f: 8  },
+    at:    { kcal: 2000, p: 118, c: 210, f: 62 },
+    over:  { kcal: 2310, p: 131, c: 244, f: 74 },
+    empty: { kcal: 0,    p: 0,  c: 0,   f: 0  },
+  };
+
+  const fmt = n => n.toLocaleString("en-US");
+
+  function render(name) {
+    const s = STATES[name];
+    const over = s.kcal > GOAL;
+    const pct = Math.min(100, (s.kcal / GOAL) * 100);
+
+    document.body.classList.toggle("is-over", over);
+    document.documentElement.style.setProperty("--fill-pct", pct + "%");
+
+    document.getElementById("big").textContent  = fmt(over ? s.kcal - GOAL : GOAL - s.kcal);
+    document.getElementById("unit").textContent = over ? "over" : "left";
+    document.getElementById("detail").textContent =
+      s.kcal === 0 ? "nothing logged yet" : `${fmt(s.kcal)} of ${fmt(GOAL)} eaten`;
+
+    document.getElementById("p").textContent = s.p;
+    document.getElementById("c").textContent = s.c;
+    document.getElementById("f").textContent = s.f;
+
+    document.getElementById("log").style.display = name === "empty" ? "none" : "";
+  }
+
+  document.querySelectorAll(".switcher button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".switcher button")
+        .forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+      render(btn.dataset.state);
+    });
+  });
+
+  // The one orchestrated moment: the level rises on load.
+  document.documentElement.style.setProperty("--fill-pct", "0%");
+  requestAnimationFrame(() => setTimeout(() => render("under"), 60));
+</script>
+
+</body>
+</html>

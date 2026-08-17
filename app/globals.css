@@ -1,0 +1,298 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-honey text-pine antialiased;
+  }
+
+  /* Numbers are compared down columns here, so they are always tabular. */
+  .num {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  :focus-visible {
+    outline: 3px solid theme(colors.pine.DEFAULT);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    @apply bg-pine text-honey;
+  }
+
+  /* Number inputs: the spinners fight with tabular alignment. */
+  input[type="number"]::-webkit-outer-spin-button,
+  input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
+}
+
+@layer components {
+  /* Small, bold, widely tracked: the label vernacular of the whole page. */
+  .eyebrow {
+    @apply font-display text-xs font-bold uppercase tracking-eyebrow text-pine-soft;
+  }
+
+  .card {
+    @apply overflow-hidden rounded-2xl border-2 border-pine bg-porcelain;
+  }
+
+  .field {
+    @apply w-full rounded-xl border-2 border-pine/25 bg-porcelain px-3.5 py-2.5
+           text-sm text-pine placeholder:text-pine-soft/70
+           focus:border-pine focus:outline-none;
+  }
+
+  /* A round nudge: prev, next, dismiss. */
+  .pill {
+    @apply grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-pine
+           text-pine transition-colors hover:bg-pine hover:text-honey
+           disabled:cursor-not-allowed disabled:opacity-30
+           disabled:hover:bg-transparent disabled:hover:text-pine;
+  }
+
+  .btn {
+    @apply font-display font-semibold transition-colors
+           disabled:cursor-not-allowed disabled:opacity-35;
+  }
+
+  .btn-solid {
+    @apply btn rounded-full bg-pine px-5 py-2.5 text-sm text-honey
+           hover:bg-pine-soft disabled:hover:bg-pine;
+  }
+
+  .btn-quiet {
+    @apply btn rounded-full border-2 border-pine/30 px-4 py-2 text-sm text-pine
+           hover:border-pine hover:bg-pine hover:text-porcelain
+           disabled:hover:border-pine/30 disabled:hover:bg-transparent
+           disabled:hover:text-pine;
+  }
+
+  .chip {
+    @apply rounded-full border-[1.5px] border-pine/30 px-2.5 py-1 font-body
+           text-[11px] font-semibold text-pine transition-colors
+           hover:border-pine hover:bg-pine hover:text-porcelain
+           disabled:cursor-not-allowed disabled:opacity-35
+           disabled:hover:border-pine/30 disabled:hover:bg-transparent
+           disabled:hover:text-pine;
+  }
+
+  .chip-danger {
+    @apply hover:border-coral hover:bg-coral hover:text-porcelain;
+  }
+
+  /* The display face set narrow and tight, for figures that carry the page. */
+  .display-tight {
+    font-variation-settings: "wdth" 86, "wght" 700;
+    letter-spacing: -0.035em;
+  }
+
+  .display-wide {
+    font-variation-settings: "wdth" 92, "wght" 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+/* ─── The vessel ────────────────────────────────────────────────────────────
+   The day as a measure being filled. The rim IS the goal — dashed, so a full
+   measure reads as a day at goal and no second line competes with it. */
+
+.jug {
+  position: relative;
+  width: 9rem;
+  height: 13.5rem;
+}
+
+.jug__body {
+  position: absolute;
+  inset: 0;
+  border: 3px solid theme(colors.pine.DEFAULT);
+  border-top: 3px dashed theme(colors.pine.DEFAULT);
+  border-radius: 0.35rem 0.35rem 1.6rem 1.6rem;
+  background: theme(colors.porcelain);
+  overflow: hidden;
+}
+
+.jug__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--fill, 0%);
+  background: theme(colors.pine.DEFAULT);
+  transition:
+    height 0.8s cubic-bezier(0.22, 0.68, 0.28, 1),
+    background 0.3s ease;
+}
+
+/* A liquid has a surface, not an edge. */
+.jug__fill::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: theme(colors.pine.soft);
+}
+
+.jug[data-over="true"] .jug__fill {
+  background: theme(colors.coral.DEFAULT);
+}
+.jug[data-over="true"] .jug__fill::before {
+  background: theme(colors.coral.light);
+}
+
+/* Graduations, unlabelled. They also give an almost-empty vessel something to
+   be almost empty against, so early in the day it still reads as a measure. */
+.tick {
+  position: absolute;
+  right: 0;
+  width: 1.1rem;
+  border-top: 2px solid theme(colors.pine.DEFAULT);
+  opacity: 0.3;
+}
+.tick--25 {
+  bottom: 25%;
+}
+.tick--50 {
+  bottom: 50%;
+  width: 1.7rem;
+}
+.tick--75 {
+  bottom: 75%;
+}
+
+/* A day with nothing logged should read as deliberately empty, not as broken. */
+.jug__empty {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 1.25rem;
+  text-align: center;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: theme(colors.pine.soft);
+  opacity: 0.55;
+}
+.jug__empty::after {
+  content: "";
+  position: absolute;
+  left: 1.25rem;
+  right: 1.25rem;
+  bottom: -0.55rem;
+  border-top: 2px dashed theme(colors.pine.soft);
+  opacity: 0.5;
+}
+
+/* ─── Over goal: it pours ───────────────────────────────────────────────────
+   One continuous path: it begins on the liquid's own surface inside the rim,
+   wells over the lip and runs down the outside of the wall. Drawn as separate
+   boxes it read as a loose bar standing beside the vessel, which is the whole
+   thing this shape exists to avoid. */
+
+.pour {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 9rem;
+  height: 13.5rem;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* Revealed top-down, so the liquid runs rather than appears. */
+.pour__run {
+  fill: theme(colors.coral.DEFAULT);
+  clip-path: inset(0 0 100% 0);
+  animation: pour-run 0.6s cubic-bezier(0.3, 0.7, 0.4, 1) 0.15s forwards;
+}
+
+/* The pool is the only part carrying magnitude: it spreads with how far past
+   the goal the day went. */
+.pour__pool {
+  fill: theme(colors.coral.DEFAULT);
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: pour-pool 0.45s ease 0.6s both;
+}
+
+@keyframes pour-run {
+  to {
+    clip-path: inset(0 0 -12% 0);
+  }
+}
+
+@keyframes pour-pool {
+  from {
+    transform: scaleX(0);
+    opacity: 0;
+  }
+  to {
+    transform: scaleX(1);
+    opacity: 1;
+  }
+}
+
+/* ─── The week: seven small measures ───────────────────────────────────────
+   The same object at a smaller scale, so no new visual language is needed to
+   read a week. */
+
+.dayjug {
+  position: relative;
+  display: block;
+  /* Narrow and upright: a small vessel, not a tub. */
+  max-width: 3rem;
+  margin: 0 auto;
+  height: 4.25rem;
+  border: 2px solid theme(colors.pine.DEFAULT);
+  /* Dashed at the top for the same reason as the big vessel: the rim is the
+     goal, so a full small measure is a day at goal. */
+  border-top-style: dashed;
+  border-radius: 0.22rem 0.22rem 0.7rem 0.7rem;
+  background: theme(colors.porcelain);
+  overflow: hidden;
+  transition: transform 0.15s ease;
+}
+
+.weekday:hover:not(:disabled) .dayjug {
+  transform: translateY(-2px);
+}
+
+.dayjug__fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: theme(colors.pine.DEFAULT);
+}
+
+.dayjug__fill--over {
+  background: theme(colors.coral.DEFAULT);
+}
+
+.weekday[aria-current="date"] .dayjug {
+  box-shadow:
+    0 0 0 3px theme(colors.honey.DEFAULT),
+    0 0 0 5px theme(colors.pine.DEFAULT);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,47 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+/// A selectable food. Nutrition values are stated per one `unit`.
+/// Seeded foods have isCustom = false; user-created foods have isCustom = true.
+model Food {
+  id              Int        @id @default(autoincrement())
+  name            String     @unique
+  unit            String
+  caloriesPerUnit Float
+  protein         Float
+  carbs           Float
+  fat             Float
+  isCustom        Boolean    @default(false)
+  entries         LogEntry[]
+}
+
+/// One logged food on one calendar day.
+///
+/// `quantity` is a multiplier of the food's unit: 1.5 of a "100g" food is 150g,
+/// 2 of a "piece" food is two pieces.
+///
+/// `date` is a "YYYY-MM-DD" string in the user's LOCAL calendar, computed on the
+/// client. Storing a DateTime here would let an entry logged at 23:30 land on the
+/// next day once it is read back as UTC.
+model LogEntry {
+  id        Int      @id @default(autoincrement())
+  foodId    Int
+  food      Food     @relation(fields: [foodId], references: [id])
+  quantity  Float
+  date      String
+  createdAt DateTime @default(now())
+
+  @@index([date])
+}
+
+/// The single daily calorie target for this installation. Always id = 1.
+model UserGoal {
+  id                 Int @id @default(1)
+  dailyCalorieTarget Int @default(2000)
+}
