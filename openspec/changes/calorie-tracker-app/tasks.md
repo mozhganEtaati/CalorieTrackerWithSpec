@@ -62,12 +62,12 @@
 - [x] 8.2 Prevent selecting dates after today in the picker
 - [x] 8.3 Build the last-7-days strip using a single grouped query over the date range, one bar per day showing consumed calories against the goal, with zero-entry days rendered as zero rather than omitted
 - [x] 8.4 Make a bar in the strip select that day, updating the entry list and summary
-- [ ] 8.5 Confirm add, edit, and delete on a selected past day write to that day and leave today's totals unchanged
+- [x] 8.5 Confirm add, edit, and delete on a selected past day write to that day and leave today's totals unchanged
 
 ## 9. Verification and polish
 
-- [ ] 9.1 Walk each spec file's scenarios against the running app and confirm the observable behavior matches; note any gap before closing this task
-- [ ] 9.2 Verify the late-evening case: log an entry with the clock at 23:30 local and confirm it stays on that calendar day after a reload
+- [x] 9.1 Walk each spec file's scenarios against the running app and confirm the observable behavior matches; note any gap before closing this task
+- [x] 9.2 Verify the late-evening case: log an entry with the clock at 23:30 local and confirm it stays on that calendar day after a reload
 - [x] 9.3 Verify rounding: log several fractional quantities and confirm the day total equals the rounded sum of unrounded values, not the sum of rounded per-entry values
 - [x] 9.4 Verify the over-goal state: exceed the goal and confirm the excess is reported and the progress indicator does not overflow its container
 - [x] 9.5 Verify persistence: restart the app and confirm entries, custom foods, and the goal survive

@@ -32,14 +32,9 @@ export default function DayVessel({
   // tab, which left the vessel stuck empty until the tab was looked at.
   const [level, setLevel] = useState(0);
   useEffect(() => {
-    console.log("[DayVessel] effect fired, target=", target);
-    const timer = setTimeout(() => {
-      console.log("[DayVessel] setLevel firing", target);
-      setLevel(target);
-    }, 30);
+    const timer = setTimeout(() => setLevel(target), 30);
     return () => clearTimeout(timer);
   }, [target]);
-  console.log("[DayVessel] render, level=", level, "target=", target);
 
   // How far past the goal the day went, as the spread of the pool it makes.
   // In the jug's own pixel units: a hair over the goal puddles, double the goal
