@@ -88,6 +88,19 @@ export const setGoalSchema = z.object({
   dailyCalorieTarget: goalSchema,
 });
 
+const aiNutritionItemSchema = z.object({
+  name: foodNameSchema,
+  calories: nonNegative("Calories"),
+  protein: nonNegative("Protein"),
+  carbs: nonNegative("Carbs"),
+  fat: nonNegative("Fat"),
+});
+
+export const logAiNutritionItemsSchema = z.object({
+  items: z.array(aiNutritionItemSchema).min(1, "Pick at least one item"),
+  date: dateSchema,
+});
+
 /** First Zod issue as a { field, error } pair for inline rendering. */
 export function firstIssue(error: z.ZodError): { field: string; error: string } {
   const issue = error.issues[0];

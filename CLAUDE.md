@@ -18,6 +18,8 @@ npm run db:reset       # prisma migrate reset, then re-seed
 
 There is no test suite in this repo (teaching project, no test infra beyond the spec tasks in `openspec/`).
 
+`eslint.config.mjs` (flat config, `next/core-web-vitals` + `next/typescript`) and the `eslint`/`eslint-config-next` devDependencies were added as part of `ai-nutrition-lookup` — `npm run lint` had no config and prompted interactively before that.
+
 **Do not run `npm run build` while `npm run dev` is serving** — the build overwrites `.next` chunks under the running server and produces `__webpack_modules__[moduleId] is not a function`. Stop the dev server first, or `rm -rf .next` and restart if it already happened.
 
 **Watch for port squatting.** A dev server surviving from an earlier session keeps port 3000, silently pushing a newly started one to 3001/3002 — you then edit code, test against the old stale build on 3000, and conclude nothing works. Before starting `npm run dev`, check what's already listening (`netstat -ano | grep :3000` on Windows) and kill stale `node` processes if the port is taken.
@@ -37,8 +39,12 @@ Both must pass with no new errors. If the change touches `app/actions.ts`, `lib/
 
 ## Architecture
 
-Single-page app: everything lives at `/`. No auth, no second route, no external HTTP calls at runtime — SQLite via Prisma is the only persistence.
+Single-page app: everything lives at `/`. No auth. SQLite via Prisma is the only persistence for the app's own data; `app/api/nutrition/*` is the one runtime dependency on an external service (Gemini), used for read-only AI nutrition estimates, never for `Food`/`LogEntry` writes.
 
+- **`app/api/nutrition/text/route.ts`** — POST Route Handler. Validates a free-text meal description via `lib/aiNutrition.ts`, calls Gemini, returns `{ ok: true, data } | { ok: false, error }` as JSON (`400` on validation failure, `502` on Gemini/parse failure, `200` on success).
+- **`app/api/nutrition/image/route.ts`** — POST Route Handler. Accepts `multipart/form-data` with a `file` field (JPEG/PNG, ≤8MB), calls Gemini's image analysis, same result shape. A `200 { ok: false }` (not `502`) means the request was valid but no food was recognized in the image.
+- **`lib/gemini.ts`** — lazy Gemini client singleton (`gemini-3.5-flash-lite`), reading `GEMINI_API_KEY` server-side only; returns a typed error instead of throwing when the key is missing.
+- **`lib/aiNutrition.ts`** — shared Zod schemas (input validation + Gemini response shape), prompt building, and the `lookupNutritionFromText`/`lookupNutritionFromImage` functions both routes call. Uses Gemini's `responseSchema`/`responseMimeType: "application/json"` structured output mode rather than free-text parsing.
 - **`app/page.tsx`** — the only route. Server Component (`force-dynamic`), reads `searchParams.date`, resolves it via `parseDateParam` (falls back to today on missing/malformed input), loads that day's entries + the goal singleton in parallel, and renders.
 - **`app/actions.ts`** — all five mutations (`addEntry`, `updateEntry`, `deleteEntry`, `setGoal`, `createFood`) as Server Actions behind `"use server"`, each returning `{ ok: true } | { ok: false, error, field? }` instead of throwing for expected failures (bad input, duplicate name). Unexpected failures (DB unreachable) still throw and surface via `error.tsx`. Every action validates through `lib/validation.ts` (Zod) before touching Prisma, then calls `revalidatePath("/")`.
 - **`app/_components/`** — client components: `DayVessel.tsx` (the day-as-a-vessel summary/progress display), `GoalSetter.tsx`, `AddEntryForm.tsx` (search + select + quantity, opens `CustomFoodForm` on no match), `CustomFoodForm.tsx`, `DayControls.tsx` (prev/date-input/next/today, pushes `?date=`), `HistoryStrip.tsx` (7-day strip ending at the selected day), `EntryList.tsx` (inline edit + optimistic delete via `useOptimistic`), `TodayRedirect.tsx` (client-resolves local "today" and pushes it into the URL when `?date=` is absent, avoiding a server/client hydration mismatch on "today").
@@ -69,7 +75,7 @@ Single-page app: everything lives at `/`. No auth, no second route, no external 
 - Do not change database schema without checking the corresponding spec.
 - Do not move business logic into client components.
 - Keep Server Actions as the mutation boundary.
-- Validate all external/user input through lib/validation.ts.
+- Validate all external/user input through lib/validation.ts (Server Action mutations) or lib/aiNutrition.ts (the `app/api/nutrition/*` Route Handlers, which sit outside the Server Action boundary).
 - Do not duplicate date or nutrition calculations outside lib/date.ts and lib/nutrition.ts.
 - Preserve existing behavior unless the task explicitly changes it.
 - Prefer the smallest change that satisfies the requirement.

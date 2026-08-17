@@ -8,6 +8,7 @@ import {
   customFoodSchema,
   deleteEntrySchema,
   firstIssue,
+  logAiNutritionItemsSchema,
   setGoalSchema,
   updateEntrySchema,
 } from "@/lib/validation";
@@ -112,6 +113,66 @@ export async function setGoal(input: {
     where: { id: 1 },
     update: { dailyCalorieTarget: parsed.data.dailyCalorieTarget },
     create: { id: 1, dailyCalorieTarget: parsed.data.dailyCalorieTarget },
+  });
+
+  revalidatePath("/");
+  return { ok: true };
+}
+
+export async function logAiNutritionItems(input: {
+  items: unknown;
+  date: unknown;
+}): Promise<ActionResult> {
+  const parsed = logAiNutritionItemsSchema.safeParse(input);
+  if (!parsed.success) return invalid(parsed.error);
+
+  await prisma.$transaction(async (tx) => {
+    // Same case-insensitive matching rule as createFood, evaluated once per
+    // transaction so items sharing a name within one confirm resolve to the
+    // same food instead of racing each other.
+    const existing = await tx.food.findMany({ select: { id: true, name: true } });
+    const byFoldedName = new Map(
+      existing.map((food) => [food.name.trim().toLocaleLowerCase(), food.id]),
+    );
+
+    for (const item of parsed.data.items) {
+      const folded = item.name.toLocaleLowerCase();
+      let foodId = byFoldedName.get(folded);
+
+      if (foodId === undefined) {
+        try {
+          const created = await tx.food.create({
+            data: {
+              name: item.name,
+              unit: "serving",
+              caloriesPerUnit: item.calories,
+              protein: item.protein,
+              carbs: item.carbs,
+              fat: item.fat,
+              isCustom: true,
+            },
+          });
+          foodId = created.id;
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === "P2002"
+          ) {
+            // Lost a race to a concurrent confirm creating the same name.
+            const winner = await tx.food.findFirst({ where: { name: item.name } });
+            if (!winner) throw error;
+            foodId = winner.id;
+          } else {
+            throw error;
+          }
+        }
+        byFoldedName.set(folded, foodId);
+      }
+
+      await tx.logEntry.create({
+        data: { foodId, quantity: 1, date: parsed.data.date },
+      });
+    }
   });
 
   revalidatePath("/");

@@ -1,10 +1,24 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
-import { addEntry } from "../actions";
+import { useMemo, useRef, useState, useTransition } from "react";
+import { addEntry, logAiNutritionItems } from "../actions";
 import { formatCalories } from "@/lib/format";
 import CustomFoodForm from "./CustomFoodForm";
 import type { FoodOption } from "./types";
+
+type AiNutritionItem = {
+  name: string;
+  calories: number;
+  protein: number;
+  carbs: number;
+  fat: number;
+};
+
+type AiLookupResponse =
+  | { ok: true; data: { items: AiNutritionItem[] } }
+  | { ok: false; error: string };
+
+type ReviewItem = AiNutritionItem & { checked: boolean };
 
 export default function AddEntryForm({
   foods,
@@ -22,6 +36,13 @@ export default function AddEntryForm({
   );
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [isPending, startTransition] = useTransition();
+
+  const [aiDescription, setAiDescription] = useState("");
+  const [aiTextPending, setAiTextPending] = useState(false);
+  const [aiImagePending, setAiImagePending] = useState(false);
+  const [reviewItems, setReviewItems] = useState<ReviewItem[] | null>(null);
+  const [confirmPending, startConfirmTransition] = useTransition();
+  const aiFileInputRef = useRef<HTMLInputElement>(null);
 
   // Case-insensitive, matches anywhere in the name.
   const matches = useMemo(() => {
@@ -71,9 +92,203 @@ export default function AddEntryForm({
     setIssue(null);
   }
 
+  function clearAiQuickLog() {
+    setAiDescription("");
+    setReviewItems(null);
+    if (aiFileInputRef.current) aiFileInputRef.current.value = "";
+  }
+
+  async function runAiTextQuickLookup() {
+    const description = aiDescription.trim();
+    if (description === "") return;
+    setAiTextPending(true);
+    setIssue(null);
+    try {
+      const response = await fetch("/api/nutrition/text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ description }),
+      });
+      const result = (await response.json()) as AiLookupResponse;
+      if (!result.ok) {
+        setIssue({ field: "aiQuickLog", error: result.error });
+      } else if (result.data.items.length === 0) {
+        setIssue({ field: "aiQuickLog", error: "No food recognized" });
+      } else {
+        setReviewItems(
+          result.data.items.map((item) => ({ ...item, checked: true })),
+        );
+      }
+    } catch {
+      setIssue({ field: "aiQuickLog", error: "AI lookup failed" });
+    } finally {
+      setAiTextPending(false);
+    }
+  }
+
+  async function runAiImageQuickLookup(file: File) {
+    setAiImagePending(true);
+    setIssue(null);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await fetch("/api/nutrition/image", {
+        method: "POST",
+        body: formData,
+      });
+      const result = (await response.json()) as AiLookupResponse;
+      if (!result.ok) {
+        setIssue({ field: "aiQuickLog", error: result.error });
+      } else if (result.data.items.length === 0) {
+        setIssue({ field: "aiQuickLog", error: "No food recognized" });
+      } else {
+        setReviewItems(
+          result.data.items.map((item) => ({ ...item, checked: true })),
+        );
+      }
+    } catch {
+      setIssue({ field: "aiQuickLog", error: "AI lookup failed" });
+    } finally {
+      setAiImagePending(false);
+      if (aiFileInputRef.current) aiFileInputRef.current.value = "";
+    }
+  }
+
+  function toggleReviewItem(index: number) {
+    setReviewItems((current) =>
+      current
+        ? current.map((item, i) =>
+            i === index ? { ...item, checked: !item.checked } : item,
+          )
+        : current,
+    );
+  }
+
+  function confirmAiQuickLog() {
+    if (!reviewItems) return;
+    const checked = reviewItems.filter((item) => item.checked);
+    if (checked.length === 0) {
+      setIssue({ field: "aiQuickLog", error: "Pick at least one item" });
+      return;
+    }
+    startConfirmTransition(async () => {
+      const result = await logAiNutritionItems({
+        items: checked.map((item) => ({
+          name: item.name,
+          calories: item.calories,
+          protein: item.protein,
+          carbs: item.carbs,
+          fat: item.fat,
+        })),
+        date,
+      });
+      if (result.ok) {
+        setIssue(null);
+        clearAiQuickLog();
+      } else {
+        setIssue({ field: "aiQuickLog", error: result.error });
+      }
+    });
+  }
+
   return (
     <section aria-label="Add a food">
       <h2 className="eyebrow mb-3">Add something</h2>
+
+      <div className="card mb-3 flex flex-wrap items-start gap-3 px-4 py-3">
+        <div className="flex min-w-[220px] flex-1 items-center gap-2">
+          <input
+            type="text"
+            placeholder="What did you eat? — grilled chicken with rice…"
+            value={aiDescription}
+            onChange={(event) => setAiDescription(event.target.value)}
+            className="field"
+          />
+          <button
+            type="button"
+            onClick={runAiTextQuickLookup}
+            disabled={aiTextPending || aiDescription.trim() === ""}
+            className="btn-quiet whitespace-nowrap"
+          >
+            {aiTextPending ? "Thinking…" : "Analyze"}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            ref={aiFileInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            disabled={aiImagePending}
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) runAiImageQuickLookup(file);
+            }}
+            className="text-xs"
+          />
+          {aiImagePending ? (
+            <span className="text-xs text-pine-soft">Analyzing…</span>
+          ) : null}
+        </div>
+      </div>
+
+      {issue?.field === "aiQuickLog" ? (
+        <p role="alert" className="mb-3 text-xs text-coral">
+          {issue.error}
+        </p>
+      ) : null}
+
+      {reviewItems ? (
+        <div className="card mb-3">
+          <p className="px-4 pt-3 text-xs text-pine-soft">
+            Log these for today?
+          </p>
+          <ul className="mt-1">
+            {reviewItems.map((item, index) => (
+              <li
+                key={`${item.name}-${index}`}
+                className="border-b border-pine/15 px-4 py-2 last:border-b-0"
+              >
+                <label className="flex items-center justify-between gap-3">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={item.checked}
+                      onChange={() => toggleReviewItem(index)}
+                    />
+                    <span
+                      className={`text-sm font-medium ${item.checked ? "" : "text-pine-soft/60 line-through"}`}
+                    >
+                      {item.name}
+                    </span>
+                  </span>
+                  <span className="num shrink-0 text-xs text-pine-soft">
+                    {Math.round(item.calories)} kcal
+                  </span>
+                </label>
+              </li>
+            ))}
+          </ul>
+          <div className="flex gap-2 border-t border-pine/20 px-4 py-3">
+            <button
+              type="button"
+              onClick={confirmAiQuickLog}
+              disabled={confirmPending}
+              className="btn-solid"
+            >
+              {confirmPending ? "Logging" : "Log it"}
+            </button>
+            <button
+              type="button"
+              onClick={clearAiQuickLog}
+              disabled={confirmPending}
+              className="btn-quiet"
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <div className="relative">
         <span
@@ -219,7 +434,7 @@ export default function AddEntryForm({
         </form>
       ) : null}
 
-      {issue ? (
+      {issue && issue.field !== "aiQuickLog" ? (
         <p role="alert" className="mt-2 text-xs text-coral">
           {issue.error}
         </p>
